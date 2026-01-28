@@ -5,29 +5,27 @@ import useAnimationLoop from '../hooks/useAnimationLoop.js';
 import EducationalOverlay from './overlays/EducationalOverlay.jsx';
 
 /**
- * 3-column split view: Source A | Source B | Combined (A+B).
+ * 2-panel split view for comparing sounds side by side.
  * Each panel gets its own canvas at pixelRatio 1 for performance.
+ * Panels default to combined audio and can be filtered to a single source.
  */
 export default function SplitView({ getEngineRef }) {
   const refA = useRef(null);
   const refB = useRef(null);
-  const refC = useRef(null);
-  const scenesRef = useRef({ a: null, b: null, c: null });
+  const scenesRef = useRef({ a: null, b: null });
 
   // Init / destroy SceneManagers
   useEffect(() => {
-    const els = { a: refA.current, b: refB.current, c: refC.current };
-    if (!els.a || !els.b || !els.c) return;
+    const els = { a: refA.current, b: refB.current };
+    if (!els.a || !els.b) return;
 
     const opts = { pixelRatio: 1 };
     scenesRef.current.a = new SceneManager(els.a, opts);
     scenesRef.current.b = new SceneManager(els.b, opts);
-    scenesRef.current.c = new SceneManager(els.c, opts);
 
     const handleResize = () => {
       scenesRef.current.a?.resize();
       scenesRef.current.b?.resize();
-      scenesRef.current.c?.resize();
     };
     window.addEventListener('resize', handleResize);
 
@@ -35,8 +33,7 @@ export default function SplitView({ getEngineRef }) {
       window.removeEventListener('resize', handleResize);
       scenesRef.current.a?.dispose();
       scenesRef.current.b?.dispose();
-      scenesRef.current.c?.dispose();
-      scenesRef.current = { a: null, b: null, c: null };
+      scenesRef.current = { a: null, b: null };
     };
   }, []);
 
@@ -46,7 +43,7 @@ export default function SplitView({ getEngineRef }) {
     const scenes = scenesRef.current;
     const engine = getEngineRef();
 
-    for (const key of ['a', 'b', 'c']) {
+    for (const key of ['a', 'b']) {
       const sm = scenes[key];
       if (!sm) continue;
 
@@ -56,16 +53,13 @@ export default function SplitView({ getEngineRef }) {
       let audioData = { amplitude: 0, bass: 0, mid: 0, treble: 0, waveform: null };
 
       if (engine) {
-        if (key === 'c') {
-          // Combined
-          audioData = engine.getCombinedData();
+        const assignedId = splitAssignment[key];
+        const storeSource = sources.find((s) => s.id === assignedId);
+        if (storeSource?.engineId) {
+          audioData = engine.getSourceData(storeSource.engineId) || audioData;
         } else {
-          // Per-source
-          const assignedId = splitAssignment[key];
-          const storeSource = sources.find((s) => s.id === assignedId);
-          if (storeSource?.engineId) {
-            audioData = engine.getSourceData(storeSource.engineId) || audioData;
-          }
+          // Default to combined audio so the panel is always active
+          audioData = engine.getCombinedData();
         }
       }
 
@@ -78,7 +72,7 @@ export default function SplitView({ getEngineRef }) {
   const setSplitAssignment = useAppStore((s) => s.setSplitAssignment);
 
   return (
-    <div className="w-full h-full grid grid-cols-3 gap-1 bg-black">
+    <div className="w-full h-full grid grid-cols-2 gap-1 bg-black">
       {['a', 'b'].map((slot) => (
         <div key={slot} className="relative">
           {/* Source selector */}
@@ -91,7 +85,7 @@ export default function SplitView({ getEngineRef }) {
               className="bg-black/70 text-white text-xs rounded px-2 py-1 border border-white/20 backdrop-blur-sm"
               aria-label={`Source ${slot.toUpperCase()}`}
             >
-              <option value="">None</option>
+              <option value="">All (combined)</option>
               {sources.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.label}
@@ -100,20 +94,9 @@ export default function SplitView({ getEngineRef }) {
             </select>
           </div>
           <div ref={slot === 'a' ? refA : refB} className="w-full h-full cursor-crosshair" />
-          <div className="absolute bottom-2 left-2 text-xs text-white/40 pointer-events-none">
-            Source {slot.toUpperCase()}
-          </div>
+          <EducationalOverlay />
         </div>
       ))}
-
-      {/* Combined panel */}
-      <div className="relative">
-        <div ref={refC} className="w-full h-full cursor-crosshair" />
-        <div className="absolute bottom-2 left-2 text-xs text-cyan-400/60 pointer-events-none font-bold">
-          A + B Combined
-        </div>
-        <EducationalOverlay />
-      </div>
     </div>
   );
 }
