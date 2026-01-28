@@ -1,7 +1,7 @@
-import AudioWaveVisualization from './AudioWaveVisualization'
+import WaveSimulator from './components/WaveSimulator.jsx';
 
 function App() {
-  return <AudioWaveVisualization />
+  return <WaveSimulator />;
 }
 
-export default App
+export default App;

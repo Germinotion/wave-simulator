@@ -11,7 +11,9 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "three": "^0.160.0"
+    "three": "^0.160.0",
+    "tone": "^15.1.22",
+    "zustand": "^5.0.10"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",
